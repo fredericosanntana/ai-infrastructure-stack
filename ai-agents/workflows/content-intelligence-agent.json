@@ -1,0 +1,161 @@
+{
+  "name": "Content Intelligence Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "content-intelligence",
+        "options": {}
+      },
+      "id": "content-webhook",
+      "name": "Content Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "content-intelligence-webhook"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url || 'https://n8n.io/docs' }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "web-scraper",
+      "name": "Web Content Scraper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple content analysis without external AI\nconst input = $('Content Input').first().json;\nconst scrapedData = $json;\n\nconst content_analysis = {\n  source: {\n    url: input.url || 'No URL provided',\n    scrape_timestamp: new Date().toISOString(),\n    scrape_success: !!scrapedData.body || !!scrapedData.data,\n    status_code: scrapedData.statusCode || 'unknown'\n  },\n  content: {\n    size_bytes: scrapedData.body ? scrapedData.body.length : 0,\n    content_type: scrapedData.headers ? scrapedData.headers['content-type'] : 'unknown',\n    title: scrapedData.body ? scrapedData.body.match(/<title>(.*?)<\\/title>/i)?.[1] || 'No title found' : 'No content',\n    has_text: scrapedData.body ? scrapedData.body.length > 100 : false\n  },\n  analysis: {\n    relevance_score: 'medium', // Simple static analysis\n    category: 'Resource', // PARA default\n    suggested_tags: ['web-content', 'scraped', 'intelligence'],\n    quality_assessment: scrapedData.body && scrapedData.body.length > 500 ? 'high' : 'medium',\n    action_recommendation: scrapedData.body ? 'process_and_store' : 'retry_scraping'\n  },\n  processing_status: {\n    status: 'analyzed',\n    next_step: 'content_enhancement',\n    storage_location: '02-Zettelkasten/Resources/Web-Content/',\n    filename: `scraped-${Date.now()}.md`\n  }\n};\n\nreturn { json: content_analysis };"
+      },
+      "id": "content-analysis",
+      "name": "Content Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://172.18.0.1:3001/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer leann_api_2025"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.content.title || 'web content analysis' }}"
+            },
+            {
+              "name": "index",
+              "value": "myvault"
+            },
+            {
+              "name": "top_k",
+              "value": 3
+            }
+          ]
+        }
+      },
+      "id": "similarity-check",
+      "name": "LEANN Similarity Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Final processing with LEANN similarity results\nconst analysis = $('Content Analysis').first().json;\nconst similarity = $json.results || [];\nconst originalContent = $('Web Content Scraper').first().json;\n\nconst final_result = {\n  content_intelligence: {\n    ...analysis,\n    similarity_analysis: {\n      similar_content_found: similarity.length,\n      is_duplicate: similarity.length > 0 && similarity[0].score > 0.8,\n      top_matches: similarity.slice(0, 2).map(s => ({\n        content_preview: s.content ? s.content.slice(0, 100) + '...' : 'No preview',\n        relevance: s.score || 'N/A'\n      }))\n    },\n    final_recommendation: similarity.length > 0 && similarity[0].score > 0.8 ? \n      'skip_duplicate_content' : 'process_and_integrate',\n    integration_status: 'ready_for_knowledge_base'\n  },\n  raw_content: {\n    url: $('Content Input').first().json.url,\n    scraped_size: originalContent.body ? originalContent.body.length : 0,\n    content_snippet: originalContent.body ? originalContent.body.slice(0, 300) + '...' : 'No content scraped'\n  },\n  timestamp: new Date().toISOString()\n};\n\nreturn { json: final_result };"
+      },
+      "id": "final-processing",
+      "name": "Final Processing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "response",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Content Input": {
+      "main": [
+        [
+          {
+            "node": "Web Content Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web Content Scraper": {
+      "main": [
+        [
+          {
+            "node": "Content Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Analysis": {
+      "main": [
+        [
+          {
+            "node": "LEANN Similarity Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LEANN Similarity Check": {
+      "main": [
+        [
+          {
+            "node": "Final Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Processing": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

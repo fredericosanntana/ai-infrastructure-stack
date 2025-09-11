@@ -1,0 +1,99 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "rules/*.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter (Host Metrics)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # cAdvisor (Container Metrics)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # Traefik Metrics
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['traefik:8082']
+
+  # Docker daemon metrics  
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['172.17.0.1:9323']
+
+  # PostgreSQL Exporter (BillionMail)
+  - job_name: 'postgres-billionmail'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Redis Exporter (BillionMail)
+  - job_name: 'redis-billionmail'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # Custom Activity Agent Metrics
+  - job_name: 'activity-agent'
+    static_configs:
+      - targets: ['172.17.0.1:8000']
+    scrape_interval: 30s
+
+  # n8n Metrics (if available)
+  - job_name: 'n8n'
+    static_configs:
+      - targets: ['n8n:5678']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # LEANN HTTP API Metrics
+  - job_name: 'leann-api'
+    static_configs:
+      - targets: ['172.17.0.1:3001']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # LEANN Auto-Reindex Service Monitoring
+  - job_name: 'leann-auto-reindex'
+    static_configs:
+      - targets: ['172.17.0.1:8001']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+    scrape_timeout: 15s
+
+  # Blackbox Exporter for URL monitoring
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://www.obsidian.dpo2u.com
+        - https://www.n8n.dpo2u.com
+        - https://mail.dpo2u.com
+        - https://www.webmail.dpo2u.com
+        - https://grafana.dpo2u.com
+        - https://prometheus.dpo2u.com
+        - http://localhost:3001/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115

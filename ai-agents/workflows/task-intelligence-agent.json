@@ -1,0 +1,207 @@
+{
+  "name": "Task Intelligence Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "task-intelligence",
+        "options": {}
+      },
+      "id": "task-webhook",
+      "name": "Task Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "task-intelligence-webhook"
+    },
+    {
+      "parameters": {
+        "url": "http://172.18.0.1:3001/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer leann_api_2025"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.task_description || $json.description || 'task execution' }}"
+            },
+            {
+              "name": "index",
+              "value": "myvault"
+            },
+            {
+              "name": "top_k",
+              "value": 5
+            }
+          ]
+        }
+      },
+      "id": "context-search",
+      "name": "Task Context Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Task Intelligence Processing\nconst input = $('Task Input').first().json;\nconst searchResults = $json.results || [];\n\nconst analysis = {\n  task: {\n    description: input.task_description || input.description || 'No task specified',\n    priority: input.priority || 'medium',\n    deadline: input.deadline || 'not specified',\n    auto_execute: input.auto_execute || false,\n    requester: input.requester || 'system'\n  },\n  context_analysis: {\n    relevant_context_found: searchResults.length > 0,\n    context_items: searchResults.length,\n    top_contexts: searchResults.slice(0, 3).map(r => r.content ? r.content.slice(0, 100) + '...' : 'No content')\n  },\n  execution_plan: {\n    status: input.auto_execute ? 'ready_for_execution' : 'planning_complete',\n    breakdown: [\n      'Analyze task requirements',\n      'Search relevant knowledge base context',\n      'Create execution strategy',\n      'Determine required tools/services',\n      input.auto_execute ? 'Execute automatically' : 'Await manual approval'\n    ],\n    estimated_time: '5-15 minutes',\n    risk_level: input.priority === 'high' ? 'medium' : 'low',\n    required_tools: ['n8n-workflow', 'leann-api', 'knowledge-base'],\n    success_criteria: 'Task completed without errors and results documented'\n  },\n  recommendations: {\n    should_execute: input.auto_execute && input.priority !== 'high',\n    next_steps: input.auto_execute ? 'Proceed with automated execution' : 'Review plan and approve for execution',\n    monitoring: 'Track execution via n8n dashboard and logs'\n  },\n  timestamp: new Date().toISOString()\n};\n\nreturn { json: analysis };"
+      },
+      "id": "task-analysis",
+      "name": "Task Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "auto-execute",
+              "leftValue": "={{ $('Task Input').first().json.auto_execute }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "execution-decision",
+      "name": "Auto Execute Decision",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulate task execution\nconst taskInput = $('Task Input').first().json;\nconst analysis = $('Task Analysis').first().json;\n\nconst execution_result = {\n  task_id: 'task-' + Date.now(),\n  execution_status: 'completed',\n  started_at: new Date().toISOString(),\n  completed_at: new Date(Date.now() + 5000).toISOString(), // Simulate 5 second execution\n  results: {\n    success: true,\n    actions_taken: [\n      'Analyzed task: ' + taskInput.task_description,\n      'Searched knowledge base for context',\n      'Generated execution plan',\n      'Executed task automatically'\n    ],\n    output_data: 'Task executed successfully with LEANN context integration',\n    performance: {\n      context_search_time: '0.5s',\n      analysis_time: '1.2s',\n      total_execution_time: '5.0s'\n    }\n  },\n  original_analysis: analysis\n};\n\nreturn { json: execution_result };"
+      },
+      "id": "execute-task",
+      "name": "Execute Task",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create plan-only response\nconst analysis = $('Task Analysis').first().json;\n\nconst plan_response = {\n  status: 'plan_created',\n  message: 'Task analysis completed. Manual approval required before execution.',\n  execution_plan: analysis.execution_plan,\n  approval_required: true,\n  next_action: 'Review plan and set auto_execute:true to proceed',\n  analysis: analysis\n};\n\nreturn { json: plan_response };"
+      },
+      "id": "plan-only",
+      "name": "Plan Only Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "final-response",
+      "name": "Final Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Task Input": {
+      "main": [
+        [
+          {
+            "node": "Task Context Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Task Context Search": {
+      "main": [
+        [
+          {
+            "node": "Task Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Task Analysis": {
+      "main": [
+        [
+          {
+            "node": "Auto Execute Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto Execute Decision": {
+      "true": [
+        [
+          {
+            "node": "Execute Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "false": [
+        [
+          {
+            "node": "Plan Only Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Task": {
+      "main": [
+        [
+          {
+            "node": "Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Only Response": {
+      "main": [
+        [
+          {
+            "node": "Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""
+LEANN HTTP API Wrapper
+Provides REST API endpoints for LEANN semantic search functionality
+"""
+
+import os
+import sys
+import json
+import subprocess
+import logging
+from datetime import datetime
+from flask import Flask, request, jsonify
+from functools import wraps
+import secrets
+import hashlib
+
+app = Flask(__name__)
+
+# Configuration
+LEANN_COMMAND = "leann"
+DEFAULT_INDEX = "myvault"
+API_TOKEN = os.getenv("LEANN_API_TOKEN", "leann_api_2025")
+PORT = int(os.getenv("LEANN_API_PORT", "3001"))
+HOST = os.getenv("LEANN_API_HOST", "0.0.0.0")
+
+# Logging setup
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/var/log/leann-api.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+def require_auth(f):
+    """Simple token-based authentication decorator"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not token or token != API_TOKEN:
+            return jsonify({'error': 'Unauthorized', 'message': 'Valid API token required'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+def run_leann_command(command_args):
+    """Execute LEANN command and return result"""
+    try:
+        cmd = [LEANN_COMMAND] + command_args
+        logger.info(f"Executing: {' '.join(cmd)}")
+        
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd="/root"
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"LEANN command failed: {result.stderr}")
+            return {
+                'success': False,
+                'error': 'LEANN command failed',
+                'stderr': result.stderr,
+                'returncode': result.returncode
+            }
+        
+        return {
+            'success': True,
+            'stdout': result.stdout,
+            'stderr': result.stderr
+        }
+        
+    except subprocess.TimeoutExpired:
+        logger.error("LEANN command timed out")
+        return {
+            'success': False,
+            'error': 'Command timed out after 60 seconds'
+        }
+    except Exception as e:
+        logger.error(f"Exception running LEANN command: {str(e)}")
+        return {
+            'success': False,
+            'error': f'Exception: {str(e)}'
+        }
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'LEANN HTTP API Wrapper',
+        'timestamp': datetime.utcnow().isoformat(),
+        'version': '1.0.0'
+    })
+
+@app.route('/search', methods=['POST'])
+@require_auth
+def search():
+    """Search in LEANN index"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+        
+        query = data.get('query', '').strip()
+        index_name = data.get('index', DEFAULT_INDEX)
+        top_k = data.get('top_k', 5)
+        
+        if not query:
+            return jsonify({'error': 'query parameter required'}), 400
+        
+        # Run LEANN search command - need to quote the query
+        cmd_args = ['search', index_name, f'"{query}"']
+        if top_k != 5:
+            cmd_args.extend(['--top-k', str(top_k)])
+        
+        result = run_leann_command(cmd_args)
+        
+        if not result['success']:
+            return jsonify({
+                'error': 'LEANN search failed',
+                'details': result
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'query': query,
+            'index': index_name,
+            'top_k': top_k,
+            'results': result['stdout'],
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Search endpoint error: {str(e)}")
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+
+@app.route('/ask', methods=['POST'])
+@require_auth
+def ask():
+    """Ask question to LEANN index"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'JSON body required'}), 400
+        
+        question = data.get('question', '').strip()
+        index_name = data.get('index', DEFAULT_INDEX)
+        
+        if not question:
+            return jsonify({'error': 'question parameter required'}), 400
+        
+        # Run LEANN ask command - need to quote the question
+        cmd_args = ['ask', index_name, f'"{question}"']
+        result = run_leann_command(cmd_args)
+        
+        if not result['success']:
+            return jsonify({
+                'error': 'LEANN ask failed',
+                'details': result
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'question': question,
+            'index': index_name,
+            'answer': result['stdout'],
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Ask endpoint error: {str(e)}")
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+
+@app.route('/indexes', methods=['GET'])
+@require_auth
+def list_indexes():
+    """List available LEANN indexes"""
+    try:
+        result = run_leann_command(['list'])
+        
+        if not result['success']:
+            return jsonify({
+                'error': 'Failed to list indexes',
+                'details': result
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'indexes': result['stdout'],
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"List indexes error: {str(e)}")
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+
+@app.route('/api/docs', methods=['GET'])
+def api_docs():
+    """API documentation"""
+    docs = {
+        'service': 'LEANN HTTP API Wrapper',
+        'version': '1.0.0',
+        'description': 'REST API wrapper for LEANN semantic search',
+        'authentication': 'Bearer token in Authorization header',
+        'endpoints': {
+            'GET /health': 'Health check',
+            'GET /indexes': 'List available indexes (auth required)',
+            'POST /search': 'Search in index (auth required)',
+            'POST /ask': 'Ask question to index (auth required)',
+            'GET /api/docs': 'This documentation'
+        },
+        'examples': {
+            'search': {
+                'method': 'POST',
+                'url': '/search',
+                'headers': {'Authorization': 'Bearer YOUR_TOKEN'},
+                'body': {
+                    'query': 'n8n workflow automation',
+                    'index': 'myvault',
+                    'top_k': 5
+                }
+            },
+            'ask': {
+                'method': 'POST',
+                'url': '/ask',
+                'headers': {'Authorization': 'Bearer YOUR_TOKEN'},
+                'body': {
+                    'question': 'How to configure n8n webhooks?',
+                    'index': 'myvault'
+                }
+            }
+        }
+    }
+    return jsonify(docs)
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Not found', 'message': 'Endpoint not available'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Internal server error'}), 500
+
+if __name__ == '__main__':
+    logger.info(f"Starting LEANN HTTP API Wrapper on {HOST}:{PORT}")
+    logger.info(f"API Token: {API_TOKEN}")
+    logger.info(f"Default Index: {DEFAULT_INDEX}")
+    
+    app.run(
+        host=HOST,
+        port=PORT,
+        debug=False,
+        threaded=True
+    )

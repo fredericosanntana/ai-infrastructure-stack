@@ -1,0 +1,116 @@
+{
+  "name": "Working Knowledge Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "km-agent-test",
+        "options": {}
+      },
+      "id": "webhook-km-001",
+      "name": "Knowledge Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "km-agent-webhook-001"
+    },
+    {
+      "parameters": {
+        "url": "http://172.18.0.1:3001/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer leann_api_2025"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.content || $json.title || 'search query' }}"
+            },
+            {
+              "name": "index",
+              "value": "myvault"
+            },
+            {
+              "name": "top_k",
+              "value": 5
+            }
+          ]
+        }
+      },
+      "id": "leann-search-001",
+      "name": "LEANN Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process LEANN search results and create knowledge summary\nconst input = $('Knowledge Input').first().json;\nconst searchResults = $json.results || [];\n\nconst summary = {\n  request: {\n    title: input.title || 'No title',\n    content: input.content || 'No content',\n    source: input.source || 'Unknown'\n  },\n  analysis: {\n    query_processed: true,\n    similar_content_found: searchResults.length,\n    timestamp: new Date().toISOString()\n  },\n  similar_content: searchResults.map((result, index) => ({\n    rank: index + 1,\n    preview: result.content ? result.content.slice(0, 150) + '...' : 'No content',\n    relevance: result.score || 'N/A'\n  })),\n  knowledge_processing: {\n    status: 'completed',\n    categorization: 'Resource', // PARA default for new content\n    suggested_tags: ['ai-agent', 'knowledge-management', 'test'],\n    recommended_location: '02-Zettelkasten/Inbox/'\n  }\n};\n\nreturn { json: summary };"
+      },
+      "id": "process-knowledge",
+      "name": "Process Knowledge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "response-km-001",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Knowledge Input": {
+      "main": [
+        [
+          {
+            "node": "LEANN Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LEANN Search": {
+      "main": [
+        [
+          {
+            "node": "Process Knowledge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Knowledge": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

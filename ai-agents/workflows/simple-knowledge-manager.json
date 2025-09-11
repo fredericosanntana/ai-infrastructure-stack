@@ -1,0 +1,94 @@
+{
+  "name": "Simple Knowledge Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "knowledge-manager",
+        "options": {}
+      },
+      "id": "webhook1",
+      "name": "Knowledge Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://172.18.0.1:3001/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer leann_api_2025"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.content || $json.title || 'search query' }}"
+            },
+            {
+              "name": "index",
+              "value": "myvault"
+            },
+            {
+              "name": "top_k",
+              "value": 5
+            }
+          ]
+        }
+      },
+      "id": "leann-search",
+      "name": "LEANN Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "response1",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Knowledge Input": {
+      "main": [
+        [
+          {
+            "node": "LEANN Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LEANN Search": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

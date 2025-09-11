@@ -1,0 +1,433 @@
+{
+  "name": "Communication Hub Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/2 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "email-check-schedule",
+      "name": "Email Check Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 200]
+    },
+    {
+      "parameters": {
+        "protocol": "IMAP",
+        "server": "mail.dpo2u.com",
+        "port": 993,
+        "secure": true,
+        "email": "admin@dpo2u.com",
+        "password": "BillionMail2025!",
+        "folder": "INBOX",
+        "searchCriteria": "UNSEEN",
+        "options": {
+          "deleteReadEmails": false,
+          "markAsRead": true
+        }
+      },
+      "id": "email-reader",
+      "name": "Email Reader",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "communication-hub",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "External Communication Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "communication-hub-webhook"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Communication Analysis Agent that processes emails, messages, and determines appropriate responses",
+        "text": "=Analyze this communication and determine the appropriate response:\n\nSubject: {{ $json.subject || $('External Communication Webhook').first().json.subject }}\nFrom: {{ $json.from || $('External Communication Webhook').first().json.from }}\nContent: {{ $json.text || $('External Communication Webhook').first().json.content }}\nType: {{ $('External Communication Webhook').first().json.type || 'email' }}\n\nPlease provide:\n1. Communication analysis (intent, sentiment, urgency)\n2. Category classification (support, sales, technical, general)\n3. Required action (respond, forward, escalate, ignore)\n4. Response strategy if needed\n5. Priority level (high/medium/low)\n6. Suggested response content",
+        "options": {
+          "systemMessage": "You are a Communication Intelligence specialist. Analyze all types of communications for intent, sentiment, and urgency. Classify messages appropriately and suggest responses that are professional, helpful, and contextually appropriate. Always consider escalation for complex issues.",
+          "maxIterations": 5,
+          "returnIntermediateSteps": false
+        }
+      },
+      "id": "communication-analysis",
+      "name": "Communication Analysis Agent",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 1.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://172.18.0.1:3001/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer leann_api_2025"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.response }}"
+            },
+            {
+              "name": "index",
+              "value": "myvault"
+            },
+            {
+              "name": "top_k",
+              "value": 3
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "knowledge-search",
+      "name": "Knowledge Base Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "should-respond",
+              "leftValue": "={{ $('Communication Analysis Agent').first().json.response }}",
+              "rightValue": "respond",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "response-decision",
+      "name": "Should Respond Decision",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Response Generator Agent that creates contextual responses based on communication analysis and knowledge base",
+        "text": "=Generate a professional response for this communication:\n\nOriginal Message Analysis: {{ $('Communication Analysis Agent').first().json.response }}\n\nRelevant Knowledge Base Information:\n{{ $json.results ? $json.results.map((r, i) => `${i+1}. ${r.content.slice(0, 200)}...`).join('\\n') : 'No specific knowledge found' }}\n\nOriginal Message:\nSubject: {{ $('Email Reader').first().json.subject || $('External Communication Webhook').first().json.subject }}\nFrom: {{ $('Email Reader').first().json.from || $('External Communication Webhook').first().json.from }}\nContent: {{ $('Email Reader').first().json.text || $('External Communication Webhook').first().json.content }}\n\nGenerate an appropriate, professional response that addresses the sender's needs.",
+        "options": {
+          "systemMessage": "You are a professional communication assistant. Generate helpful, accurate, and contextually appropriate responses. Be concise but comprehensive. Always maintain a professional tone while being friendly and helpful. Include relevant information from the knowledge base when applicable.",
+          "maxIterations": 3,
+          "returnIntermediateSteps": false
+        }
+      },
+      "id": "response-generator",
+      "name": "Response Generator Agent",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 1.2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "admin@dpo2u.com",
+        "toEmail": "={{ $('Email Reader').first().json.from || $('External Communication Webhook').first().json.from }}",
+        "subject": "=Re: {{ $('Email Reader').first().json.subject || $('External Communication Webhook').first().json.subject }}",
+        "text": "={{ $json.response }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "ccEmail": "",
+          "bccEmail": ""
+        },
+        "credentials": {
+          "smtp": {
+            "id": "smtp-billionmail",
+            "name": "BillionMail SMTP"
+          }
+        }
+      },
+      "id": "send-email-response",
+      "name": "Send Email Response",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "high-priority",
+              "leftValue": "={{ $('Communication Analysis Agent').first().json.response }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "escalation-check",
+      "name": "Escalation Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "fromEmail": "admin@dpo2u.com",
+        "toEmail": "admin@dpo2u.com",
+        "subject": "=ESCALATION REQUIRED: {{ $('Email Reader').first().json.subject || $('External Communication Webhook').first().json.subject }}",
+        "text": "=High priority communication requires manual attention:\n\nFrom: {{ $('Email Reader').first().json.from || $('External Communication Webhook').first().json.from }}\nSubject: {{ $('Email Reader').first().json.subject || $('External Communication Webhook').first().json.subject }}\n\nOriginal Message:\n{{ $('Email Reader').first().json.text || $('External Communication Webhook').first().json.content }}\n\nAnalysis:\n{{ $('Communication Analysis Agent').first().json.response }}",
+        "options": {
+          "allowUnauthorizedCerts": true
+        },
+        "credentials": {
+          "smtp": {
+            "id": "smtp-billionmail",
+            "name": "BillionMail SMTP"
+          }
+        }
+      },
+      "id": "escalation-alert",
+      "name": "Send Escalation Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "processed",
+              "name": "processed",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "timestamp",
+              "name": "processed_at",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "action-taken",
+              "name": "action_taken",
+              "value": "={{ $('Response Decision').first().json.response ? 'responded' : 'analyzed_only' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log-activity",
+      "name": "Log Communication Activity",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "path": "/var/log/communication-hub.log",
+        "fileContent": "={{ JSON.stringify($json, null, 2) }}\\n",
+        "options": {
+          "append": true,
+          "encoding": "utf8"
+        }
+      },
+      "id": "write-log",
+      "name": "Write Activity Log",
+      "type": "n8n-nodes-base.writeFile",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "Email Check Schedule": {
+      "main": [
+        [
+          {
+            "node": "Email Reader",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Reader": {
+      "main": [
+        [
+          {
+            "node": "Communication Analysis Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "External Communication Webhook": {
+      "main": [
+        [
+          {
+            "node": "Communication Analysis Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Communication Analysis Agent": {
+      "main": [
+        [
+          {
+            "node": "Knowledge Base Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Knowledge Base Search": {
+      "main": [
+        [
+          {
+            "node": "Should Respond Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Respond Decision": {
+      "true": [
+        [
+          {
+            "node": "Response Generator Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "false": [
+        [
+          {
+            "node": "Escalation Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Generator Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Email Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email Response": {
+      "main": [
+        [
+          {
+            "node": "Log Communication Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalation Check": {
+      "true": [
+        [
+          {
+            "node": "Send Escalation Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "false": [
+        [
+          {
+            "node": "Log Communication Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Escalation Alert": {
+      "main": [
+        [
+          {
+            "node": "Log Communication Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Communication Activity": {
+      "main": [
+        [
+          {
+            "node": "Write Activity Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["communication-hub", "email", "ai-agent", "automation"],
+  "triggerCount": 2,
+  "updatedAt": "2025-09-11T16:30:00.000Z",
+  "versionId": "1"
+}

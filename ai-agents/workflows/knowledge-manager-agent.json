@@ -1,0 +1,267 @@
+{
+  "name": "Knowledge Manager Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "knowledge-manager",
+        "options": {}
+      },
+      "id": "knowledge-webhook",
+      "name": "Knowledge Input Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "knowledge-manager-webhook"
+    },
+    {
+      "parameters": {
+        "url": "http://172.18.0.1:3001/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer leann_api_2025"
+            },
+            {
+              "name": "Content-Type", 
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.content || $json.title || 'content analysis' }}"
+            },
+            {
+              "name": "index",
+              "value": "myvault"
+            },
+            {
+              "name": "top_k",
+              "value": 8
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "similarity-search",
+      "name": "Find Similar Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Knowledge Manager Agent that analyzes content and suggests PARA categorization and Zettelkasten links",
+        "text": "=Analyze the following content and suggest categorization:\n\nContent: {{ $('Knowledge Input Webhook').first().json.content }}\nTitle: {{ $('Knowledge Input Webhook').first().json.title }}\nSource: {{ $('Knowledge Input Webhook').first().json.source }}\n\nSimilar content found in knowledge base:\n{{ $json.results ? $json.results.map((r, i) => `${i+1}. ${r.content.slice(0, 200)}...`).join('\\n') : 'No similar content found' }}\n\nPlease provide:\n1. PARA categorization (Project/Area/Resource/Archive)\n2. Suggested Zettelkasten connections\n3. Tags for organization\n4. Summary and key insights\n5. Recommended file location in MyVault structure",
+        "options": {
+          "systemMessage": "You are a Knowledge Management specialist. Analyze content using PARA methodology (Projects: outcome-focused with deadline, Areas: standards to maintain, Resources: topics of interest, Archive: inactive items). For Zettelkasten, focus on atomic ideas and connections. Always suggest specific folder paths in MyVault structure.",
+          "maxIterations": 5,
+          "returnIntermediateSteps": false
+        }
+      },
+      "id": "knowledge-analysis",
+      "name": "Knowledge Analysis Agent",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 1.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "mode": "webhook",
+        "webhookUri": "http://172.18.0.1:3001/ask",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization", 
+              "value": "Bearer leann_api_2025"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "question",
+              "value": "=Create a markdown file for this content with appropriate frontmatter, tags, and links based on: {{ $json.response }}"
+            },
+            {
+              "name": "index",
+              "value": "myvault"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-markdown",
+      "name": "Generate Markdown File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "path": "=/var/lib/docker/volumes/docker-compose_obsidian-vaults/_data/MyVault/02-Zettelkasten/Inbox/{{ $('Knowledge Input Webhook').first().json.title || 'New-Note' }}-{{ new Date().toISOString().slice(0,10) }}.md",
+        "fileContent": "={{ $json.response }}",
+        "options": {
+          "encoding": "utf8"
+        }
+      },
+      "id": "save-file",
+      "name": "Save to MyVault",
+      "type": "n8n-nodes-base.writeFile",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "response",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "auto-trigger",
+      "name": "Auto Cleanup Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://172.18.0.1:3001/ask",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer leann_api_2025"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "question",
+              "value": "Find orphaned notes in Inbox folder that need categorization and suggest PARA organization"
+            },
+            {
+              "name": "index",
+              "value": "myvault"
+            }
+          ]
+        }
+      },
+      "id": "inbox-cleanup",
+      "name": "Inbox Cleanup Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 500]
+    }
+  ],
+  "connections": {
+    "Knowledge Input Webhook": {
+      "main": [
+        [
+          {
+            "node": "Find Similar Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Similar Content": {
+      "main": [
+        [
+          {
+            "node": "Knowledge Analysis Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Knowledge Analysis Agent": {
+      "main": [
+        [
+          {
+            "node": "Generate Markdown File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Markdown File": {
+      "main": [
+        [
+          {
+            "node": "Save to MyVault",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to MyVault": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto Cleanup Schedule": {
+      "main": [
+        [
+          {
+            "node": "Inbox Cleanup Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["knowledge-manager", "para", "zettelkasten", "ai-agent"],
+  "triggerCount": 2,
+  "updatedAt": "2025-09-11T16:00:00.000Z",
+  "versionId": "1"
+}

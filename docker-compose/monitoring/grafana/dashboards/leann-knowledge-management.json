@@ -1,0 +1,368 @@
+{
+  "id": null,
+  "title": "LEANN & Knowledge Management",
+  "tags": ["leann", "knowledge", "zettelkasten", "performance"],
+  "style": "dark",
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "title": "LEANN HTTP API - Request Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job=\"leann-api\"}[5m])",
+          "legendFormat": "Requests/sec"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "title": "LEANN API Response Time",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"leann-api\"}[5m]))",
+          "legendFormat": "95th percentile"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+    },
+    {
+      "id": 3,
+      "title": "Redis Cache Hit Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "redis_cache_hit_rate_percent{job=\"leann-api\"}",
+          "legendFormat": "Cache Hit %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": 0},
+              {"color": "yellow", "value": 70},
+              {"color": "green", "value": 90}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+    },
+    {
+      "id": 4,
+      "title": "LEANN Services Status",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "up{job=\"leann-api\"}",
+          "legendFormat": "LEANN API"
+        },
+        {
+          "expr": "up{job=\"leann-auto-reindex\"}",
+          "legendFormat": "Auto-Reindex"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": 0},
+              {"color": "green", "value": 1}
+            ]
+          },
+          "mappings": [
+            {"options": {"0": {"text": "DOWN"}}, "type": "value"},
+            {"options": {"1": {"text": "UP"}}, "type": "value"}
+          ]
+        }
+      },
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+    },
+    {
+      "id": 5,
+      "title": "Redis Cache Operations",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(redis_cache_hits_total{job=\"leann-api\"}[5m])",
+          "legendFormat": "Cache Hits/sec"
+        },
+        {
+          "expr": "rate(redis_cache_misses_total{job=\"leann-api\"}[5m])",
+          "legendFormat": "Cache Misses/sec"
+        },
+        {
+          "expr": "rate(redis_cache_clears_total{job=\"leann-api\"}[5m])",
+          "legendFormat": "Cache Clears/sec"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "id": 6,
+      "title": "MyVault Files Monitoring",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "vault_total_files{job=\"leann-auto-reindex\"}",
+          "legendFormat": "Total .md Files"
+        },
+        {
+          "expr": "vault_modified_files{job=\"leann-auto-reindex\"}",
+          "legendFormat": "Modified Files"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    },
+    {
+      "id": 7,
+      "title": "Auto-Reindexation Activity",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "increase(leann_reindex_total{job=\"leann-auto-reindex\"}[1h])",
+          "legendFormat": "Reindexations/hour"
+        },
+        {
+          "expr": "leann_reindex_duration_seconds{job=\"leann-auto-reindex\"}",
+          "legendFormat": "Last Reindex Duration"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+    },
+    {
+      "id": 8,
+      "title": "LEANN System Health",
+      "type": "table",
+      "targets": [
+        {
+          "expr": "up{job=~\"leann.*\"}",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "center",
+            "displayMode": "color-background"
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": 0},
+              {"color": "green", "value": 1}
+            ]
+          },
+          "mappings": [
+            {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
+            {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}
+          ]
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true},
+            "renameByName": {
+              "job": "Service",
+              "Value": "Status"
+            }
+          }
+        }
+      ],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24}
+    },
+    {
+      "id": 9,
+      "title": "Redis Memory Usage",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "redis_memory_usage_bytes{job=\"leann-api\"}",
+          "legendFormat": "Memory Usage"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": 0},
+              {"color": "yellow", "value": 5242880},
+              {"color": "red", "value": 10485760}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 32}
+    },
+    {
+      "id": 10,
+      "title": "Redis Total Keys",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "redis_total_keys{job=\"leann-api\"}",
+          "legendFormat": "Cache Keys"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 32}
+    },
+    {
+      "id": 11,
+      "title": "Redis Connected Clients",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "redis_connected_clients{job=\"leann-api\"}",
+          "legendFormat": "Clients"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 32}
+    },
+    {
+      "id": 12,
+      "title": "LEANN Request Duration by Cache Status",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(leann_request_duration_seconds_bucket{job=\"leann-api\",cache_status=\"hit\"}[5m]))",
+          "legendFormat": "95th - Cache Hit"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(leann_request_duration_seconds_bucket{job=\"leann-api\",cache_status=\"miss\"}[5m]))",
+          "legendFormat": "95th - Cache Miss"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(leann_request_duration_seconds_bucket{job=\"leann-api\",cache_status=\"hit\"}[5m]))",
+          "legendFormat": "50th - Cache Hit"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(leann_request_duration_seconds_bucket{job=\"leann-api\",cache_status=\"miss\"}[5m]))",
+          "legendFormat": "50th - Cache Miss"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 32}
+    },
+    {
+      "id": 13,
+      "title": "Redis Cache Performance Trends",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "redis_cache_hit_rate_percent{job=\"leann-api\"}",
+          "legendFormat": "Hit Rate %"
+        },
+        {
+          "expr": "redis_memory_usage_bytes{job=\"leann-api\"} / 1024 / 1024",
+          "legendFormat": "Memory Usage (MB)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 38}
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "schemaVersion": 27,
+  "version": 1,
+  "links": [],
+  "annotations": {
+    "list": []
+  }
+}

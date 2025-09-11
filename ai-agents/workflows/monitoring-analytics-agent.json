@@ -1,0 +1,190 @@
+{
+  "name": "Monitoring Analytics Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monitoring-analytics",
+        "options": {}
+      },
+      "id": "monitoring-webhook",
+      "name": "Monitoring Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "monitoring-analytics-webhook"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:9090/api/v1/query",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "up"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "prometheus-health",
+      "name": "Check Prometheus Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://172.18.0.1:3001/health",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer leann_api_2025"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "leann-health",
+      "name": "Check LEANN Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://172.18.0.1:3001/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer leann_api_2025"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "system monitoring health check"
+            },
+            {
+              "name": "index",
+              "value": "myvault"
+            },
+            {
+              "name": "top_k",
+              "value": 3
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "context-search",
+      "name": "Search Monitoring Context",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Monitoring Input').first().json;\nconst prometheusData = $('Check Prometheus Health').first().json || {};\nconst leannData = $('Check LEANN Health').first().json || {};\nconst contextData = $('Search Monitoring Context').first().json || {};\n\nconst timestamp = new Date().toISOString();\nconst prometheusStatus = prometheusData.status === 'success' ? 'healthy' : 'unhealthy';\nconst leannStatus = leannData.status === 'healthy' ? 'healthy' : 'unhealthy';\n\nconst analytics = {\n  monitoring_report: {\n    timestamp: timestamp,\n    report_type: input.report_type || 'health_check',\n    requested_by: input.requester || 'system',\n    report_id: 'mon-' + Date.now()\n  },\n  system_health: {\n    overall_status: prometheusStatus === 'healthy' && leannStatus === 'healthy' ? 'healthy' : 'degraded',\n    prometheus: {\n      status: prometheusStatus,\n      metrics_available: prometheusData.data ? prometheusData.data.result.length : 0\n    },\n    leann_api: {\n      status: leannStatus,\n      cache_status: leannData.cache_status || 'unknown'\n    },\n    n8n_workflows: {\n      status: 'operational',\n      active_agents: 4,\n      last_execution: timestamp\n    }\n  },\n  recommendations: [\n    prometheusStatus !== 'healthy' ? 'Check Prometheus connectivity' : 'Prometheus is healthy',\n    leannStatus !== 'healthy' ? 'Verify LEANN API service' : 'LEANN API is operational'\n  ]\n};\n\nreturn { json: analytics };"
+      },
+      "id": "analytics-processing",
+      "name": "Generate Analytics Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "monitoring-response",
+      "name": "Monitoring Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Monitoring Input": {
+      "main": [
+        [
+          {
+            "node": "Check Prometheus Health",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check LEANN Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Prometheus Health": {
+      "main": [
+        [
+          {
+            "node": "Search Monitoring Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check LEANN Health": {
+      "main": [
+        [
+          {
+            "node": "Search Monitoring Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Monitoring Context": {
+      "main": [
+        [
+          {
+            "node": "Generate Analytics Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Analytics Report": {
+      "main": [
+        [
+          {
+            "node": "Monitoring Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

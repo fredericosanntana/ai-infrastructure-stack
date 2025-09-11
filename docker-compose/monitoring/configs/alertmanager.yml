@@ -1,0 +1,38 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@dpo2u.com'
+  smtp_auth_username: 'billion'
+  smtp_auth_password: 'billion'
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'web.hook'
+
+receivers:
+- name: 'web.hook'
+  email_configs:
+  - to: 'fredericosanntana@gmail.com'
+    from: 'alerts@dpo2u.com'
+    smarthost: 'localhost:587'
+    auth_username: 'billion'
+    auth_password: 'billion'
+    headers:
+      Subject: '[ALERT] {{ .GroupLabels.alertname }}'
+    html: |
+      <h3>Alert Notification</h3>
+      {{ range .Alerts }}
+      <p><strong>Alert:</strong> {{ .Annotations.summary }}</p>
+      <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+      <p><strong>Status:</strong> {{ .Status }}</p>
+      <hr>
+      {{ end }}
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']

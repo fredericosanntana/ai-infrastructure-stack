@@ -1,0 +1,150 @@
+# Environment and sensitive files
+.env
+.env.local
+.env.production
+.env.staging
+
+# API Keys and secrets
+*api_key*
+*secret*
+*password*
+*token*
+
+# SSL certificates and private keys
+*.pem
+*.key
+*.crt
+acme.json
+traefik-acme/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Docker volumes and data
+data/
+volumes/
+docker-data/
+
+# Backup files
+backups/
+*.tar.gz
+*.zip
+*.bak
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+.ENV
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Redis dumps and cache
+dump.rdb
+*.rdb
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker override files (may contain sensitive info)
+docker-compose.override.yml
+
+# Local configuration overrides
+config.local.yml
+config.local.json
+
+# MCP server configurations (may contain API keys)
+mcp-servers.json
+
+# LEANN data and indices (large files)
+leann-data/
+*.index
+*.faiss
+
+# Monitoring and metrics data
+prometheus-data/
+grafana-data/
+alertmanager-data/
+
+# Email server data and configs with credentials
+mail-data/
+postfix/
+dovecot/
+rspamd/
+
+# Certificate and key files
+certificates/
+ssl/
+tls/
+
+# Local development files
+.local
+local/
+dev/
+
+# System files
+.systemd
+systemd/

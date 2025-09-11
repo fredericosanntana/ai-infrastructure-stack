@@ -1,0 +1,56 @@
+groups:
+- name: infrastructure
+  rules:
+  - alert: HighCPUUsage
+    expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High CPU usage detected"
+      description: "CPU usage is above 80% on {{ $labels.instance }} for more than 5 minutes."
+
+  - alert: HighMemoryUsage
+    expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 85
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High memory usage detected"
+      description: "Memory usage is above 85% on {{ $labels.instance }}."
+
+  - alert: DiskSpaceLow
+    expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 10
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Low disk space"
+      description: "Disk space is below 10% on {{ $labels.instance }} filesystem {{ $labels.mountpoint }}."
+
+  - alert: ContainerDown
+    expr: up{job="cadvisor"} == 0
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Container monitoring is down"
+      description: "cAdvisor container monitoring has been down for more than 2 minutes."
+
+  - alert: TraefikDown
+    expr: up{job="traefik"} == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Traefik is down"
+      description: "Traefik reverse proxy has been down for more than 1 minute."
+
+  - alert: SSLCertificateExpiry
+    expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 30
+    for: 1h
+    labels:
+      severity: warning
+    annotations:
+      summary: "SSL certificate expiring soon"
+      description: "SSL certificate for {{ $labels.instance }} expires in less than 30 days."

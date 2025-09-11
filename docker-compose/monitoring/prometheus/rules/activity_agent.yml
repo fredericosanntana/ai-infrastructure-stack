@@ -1,0 +1,38 @@
+groups:
+- name: activity_agent
+  rules:
+  - alert: ActivityAgentDown
+    expr: up{job="activity-agent"} == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Activity Agent is down"
+      description: "Activity Agent has been down for more than 5 minutes."
+
+  - alert: LLMProcessingFailures
+    expr: rate(llm_processing_errors_total[5m]) > 0.1
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High LLM processing failure rate"
+      description: "LLM processing failure rate is {{ $value }} errors per second."
+
+  - alert: EmailDeliveryFailures
+    expr: rate(email_delivery_failures_total[5m]) > 0.05
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Email delivery failures detected"
+      description: "Email delivery failure rate is {{ $value }} failures per second."
+
+  - alert: ZettelkastenGrowthStagnant
+    expr: increase(zettelkasten_notes_total[24h]) == 0
+    for: 1h
+    labels:
+      severity: info
+    annotations:
+      summary: "No new Zettelkasten notes created today"
+      description: "Zettelkasten has not grown in the last 24 hours."
