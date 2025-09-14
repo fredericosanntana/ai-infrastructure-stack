@@ -146,6 +146,32 @@ services:
     networks:
       - monitoring
 
+  # Postfix and Dovecot exporters temporarily commented
+  # Will implement with custom scripts due to image availability issues
+  # postfix-exporter:
+  #   image: kumina/postfix-exporter:latest
+  #   container_name: postfix-exporter
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTFIX_EXPORTER_HOST=billionmail-postfix-billionmail-1
+  #     - POSTFIX_EXPORTER_PORT=9154
+  #   volumes:
+  #     - /var/log:/var/log:ro
+  #   networks:
+  #     - monitoring
+  #     - billionmail_billionmail-network
+
+  # dovecot-exporter:
+  #   image: boky/postfix-exporter:latest
+  #   container_name: dovecot-exporter
+  #   restart: unless-stopped
+  #   environment:
+  #     - DOVECOT_EXPORTER_HOST=billionmail-dovecot-billionmail-1
+  #     - DOVECOT_EXPORTER_PORT=9166
+  #   networks:
+  #     - monitoring
+  #     - billionmail_billionmail-network
+
   alertmanager:
     image: prom/alertmanager:latest
     container_name: alertmanager

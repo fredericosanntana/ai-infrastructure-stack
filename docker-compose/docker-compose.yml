@@ -17,7 +17,7 @@ services:
       - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.example.com`)"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
       - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.service=api@internal"
 
@@ -32,7 +32,7 @@ services:
       - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.portainer.rule=Host(`portainer.example.com`)"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.localhost`)"
       - "traefik.http.routers.portainer.tls=true"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
 
@@ -51,13 +51,13 @@ services:
       - PUID=0
       - PGID=0
       - TZ=UTC
-      - CUSTOM_USER=${OBSIDIAN_USER}
-      - PASSWORD=${OBSIDIAN_PASSWORD}
+      - CUSTOM_USER=obsidian
+      - PASSWORD=YOUR_PASSWORD_HERE
     networks:
       - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.obsidian.rule=Host(`obsidian.example.com`)"
+      - "traefik.http.routers.obsidian.rule=Host(`www.obsidian.dpo2u.com`)"
       - "traefik.http.routers.obsidian.tls=true"
       - "traefik.http.routers.obsidian.tls.certresolver=letsencrypt"
       - "traefik.http.services.obsidian.loadbalancer.server.port=3000"
@@ -68,15 +68,19 @@ services:
     container_name: n8n
     restart: unless-stopped
     user: root
+    ports:
+      - "5678:5678"  # Expose n8n port for web access
     volumes:
       - n8n-data:/home/node/.n8n
       - obsidian-vaults:/obsidian-vaults:ro
       - /opt/leann:/opt/leann:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /usr/bin/docker:/usr/bin/docker:ro
     environment:
-      - N8N_HOST=${N8N_HOST}
+      - N8N_HOST=www.n8n.dpo2u.com
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://${N8N_HOST}/
+      - WEBHOOK_URL=https://www.n8n.dpo2u.com/
       - GENERIC_TIMEZONE=UTC
       - NODE_TLS_REJECT_UNAUTHORIZED=0
       - N8N_METRICS=false
@@ -85,17 +89,27 @@ services:
       - EXPRESS_TRUST_PROXY=true
       - PATH=/opt/leann:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       - N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - LEANN_API_TOKEN=${LEANN_API_TOKEN}
+      - OPENAI_API_KEY=YOUR_API_KEY_HERE
+      - LEANN_API_TOKEN=YOUR_TOKEN_HERE
     networks:
       - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.n8n.rule=Host(`${N8N_HOST}`)"
+      - "traefik.http.routers.n8n.rule=Host(`www.n8n.dpo2u.com`)"
       - "traefik.http.routers.n8n.tls=true"
       - "traefik.http.routers.n8n.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.n8n.service=n8n"
       - "traefik.http.services.n8n.loadbalancer.server.port=5678"
       - "traefik.docker.network=docker-compose_traefik"
+      # n8n API bypass for MCP (direct container access)
+      - "traefik.http.routers.n8n-api.rule=Host(`www.n8n.dpo2u.com`) && PathPrefix(`/api/v1`)"
+      - "traefik.http.routers.n8n-api.tls=true"
+      - "traefik.http.routers.n8n-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.n8n-api.service=n8n-api"
+      - "traefik.http.routers.n8n-api.middlewares=n8n-api-headers"
+      - "traefik.http.services.n8n-api.loadbalancer.server.port=5678"
+      - "traefik.http.middlewares.n8n-api-headers.headers.customrequestheaders.X-Forwarded-Host=www.n8n.dpo2u.com"
+      - "traefik.http.middlewares.n8n-api-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
 
   n8n-mcp:
     image: node:20-alpine
@@ -110,12 +124,12 @@ services:
       - USE_FIXED_HTTP=true
       - PORT=3100
       - HOST=0.0.0.0
-      - BASE_URL=${N8N_MCP_BASE_URL}
-      - AUTH_TOKEN=${N8N_MCP_AUTH_TOKEN}
+      - BASE_URL=https://www.n8n-mcp.dpo2u.com
+      - AUTH_TOKEN=YOUR_TOKEN_HERE
       - CORS_ORIGIN=*
       - TRUST_PROXY=1
-      - N8N_API_URL=${N8N_API_URL}
-      - N8N_API_KEY=${N8N_API_KEY}
+      - N8N_API_URL=http://n8n:5678
+      - N8N_API_KEY=YOUR_API_KEY_HERE
       - MCP_LOG_LEVEL=info
       - NODE_DB_PATH=/app/data/nodes.db
       - REBUILD_ON_START=false
@@ -123,12 +137,7 @@ services:
     networks:
       - traefik
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.n8n-mcp.rule=Host(`n8n-mcp.example.com`)"
-      - "traefik.http.routers.n8n-mcp.tls=true"
-      - "traefik.http.routers.n8n-mcp.tls.certresolver=letsencrypt"
-      - "traefik.http.services.n8n-mcp.loadbalancer.server.port=3100"
-      - "traefik.docker.network=docker-compose_traefik"
+      - "traefik.enable=false"
 
   firecrawl-mcp:
     image: node:20-alpine
@@ -139,7 +148,7 @@ services:
       - /opt/firecrawl-mcp-server:/app
     environment:
       - NODE_ENV=production
-      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - FIRECRAWL_API_KEY=YOUR_API_KEY_HERE
       - PORT=3200
       - HOST=0.0.0.0
       - CLOUD_SERVICE=true
@@ -149,12 +158,7 @@ services:
     networks:
       - traefik
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.firecrawl-mcp.rule=Host(`firecrawl-mcp.example.com`)"
-      - "traefik.http.routers.firecrawl-mcp.tls=true"
-      - "traefik.http.routers.firecrawl-mcp.tls.certresolver=letsencrypt"
-      - "traefik.http.services.firecrawl-mcp.loadbalancer.server.port=3200"
-      - "traefik.docker.network=docker-compose_traefik"
+      - "traefik.enable=false"
 
   leann-api:
     image: node:20-alpine
@@ -173,12 +177,18 @@ services:
     networks:
       - traefik
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.leann-api.rule=Host(`leann-api.example.com`)"
-      - "traefik.http.routers.leann-api.tls=true"
-      - "traefik.http.routers.leann-api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.leann-api.loadbalancer.server.port=3300"
-      - "traefik.docker.network=docker-compose_traefik"
+      - "traefik.enable=false"
+
+  prometheus-pushgateway:
+    image: prom/pushgateway:latest
+    container_name: prometheus-pushgateway
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=false"
 
 networks:
   traefik:

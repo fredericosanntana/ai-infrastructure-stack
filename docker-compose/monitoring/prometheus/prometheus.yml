@@ -76,6 +76,28 @@ scrape_configs:
     scrape_interval: 60s
     scrape_timeout: 15s
 
+  # Postfix Exporter (BillionMail) - Temporarily disabled
+  # - job_name: 'postfix'
+  #   static_configs:
+  #     - targets: ['postfix-exporter:9154']
+  #   scrape_interval: 30s
+  #   scrape_timeout: 10s
+
+  # Dovecot Exporter (BillionMail) - Temporarily disabled
+  # - job_name: 'dovecot'
+  #   static_configs:
+  #     - targets: ['dovecot-exporter:9166']
+  #   scrape_interval: 30s
+  #   scrape_timeout: 10s
+
+  # Rspamd Metrics (BillionMail)
+  - job_name: 'rspamd'
+    static_configs:
+      - targets: ['172.66.1.8:11334']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
   # Blackbox Exporter for URL monitoring
   - job_name: 'blackbox'
     metrics_path: /probe
