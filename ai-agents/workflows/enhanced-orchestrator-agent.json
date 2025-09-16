@@ -1,0 +1,560 @@
+{
+  "name": "Enhanced AI Orchestrator Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-orchestrator-enhanced",
+        "options": {}
+      },
+      "id": "enhanced-orchestrator-webhook",
+      "name": "Enhanced Orchestrator Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [-800, 300],
+      "webhookId": "enhanced-ai-orchestrator-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enhanced Context Preservation and Session Management\nconst input = $json.body;\nconst sessionId = input.session_id || 'session-' + Date.now();\nconst userId = input.user_id || input.user || 'anonymous';\nconst timestamp = new Date().toISOString();\n\n// Context preservation logic\nconst enhancedContext = {\n  session: {\n    id: sessionId,\n    user_id: userId,\n    timestamp: timestamp,\n    conversation_turn: input.conversation_turn || 1,\n    previous_actions: input.previous_actions || [],\n    context_window: input.context_window || []\n  },\n  request: {\n    message: input.message,\n    intent_hints: input.intent_hints || [],\n    priority: input.priority || 'medium',\n    expected_agents: input.expected_agents || [],\n    follow_up: input.follow_up || false\n  },\n  system: {\n    available_agents: [\n      'knowledge_manager',\n      'task_intelligence', \n      'content_intelligence',\n      'monitoring_analytics'\n    ],\n    agent_health: {\n      knowledge_manager: 'healthy',\n      task_intelligence: 'healthy',\n      content_intelligence: 'healthy',\n      monitoring_analytics: 'healthy',\n      leann_api: 'healthy'\n    },\n    routing_strategy: 'intelligent_multi_agent'\n  },\n  metadata: {\n    request_id: 'req-' + Date.now(),\n    processing_start: timestamp,\n    route_version: '2.0'\n  }\n};\n\nreturn { json: enhancedContext };"
+      },
+      "id": "context-preservation",
+      "name": "Context Preservation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.openAiApi.apiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-4-turbo-preview"
+            },
+            {
+              "name": "messages",
+              "value": "={{ JSON.stringify([{\n  \"role\": \"system\",\n  \"content\": \"You are an Enhanced AI Orchestrator Agent with advanced routing capabilities and context awareness.\\n\\nYour role:\\n1. Analyze user requests with context preservation\\n2. Route to appropriate agent(s) with intelligent coordination\\n3. Handle multi-agent workflows and dependencies\\n4. Maintain session context across interactions\\n\\nAvailable agents:\\n- Knowledge Manager Agent: PARA/Zettelkasten organization, note management\\n- Task Intelligence Agent: Task planning, execution, project management\\n- Content Intelligence Agent: Web content analysis, scraping, duplicate detection\\n- Monitoring Analytics Agent: System health, metrics, performance analysis\\n\\nEnhanced capabilities:\\n- Multi-agent coordination: Can route to multiple agents in sequence or parallel\\n- Context preservation: Maintains conversation history and user preferences\\n- Smart fallbacks: Alternative routing if primary agent unavailable\\n- Performance optimization: Load balancing and response time optimization\\n\\nSession context: \" + JSON.stringify($json.session) + \"\\n\\nYour response must be a valid JSON object with enhanced routing structure:\\n{\\n  \\\"analysis\\\": {\\n    \\\"primary_intent\\\": \\\"detailed intent analysis\\\",\\n    \\\"confidence\\\": 0.0-1.0,\\n    \\\"complexity\\\": \\\"low|medium|high\\\",\\n    \\\"entities\\\": [\\\"extracted entities\\\"],\\n    \\\"context_relevance\\\": 0.0-1.0,\\n    \\\"multi_agent_needed\\\": true/false\\n  },\\n  \\\"routing\\\": {\\n    \\\"strategy\\\": \\\"single|sequential|parallel\\\",\\n    \\\"primary_agent\\\": \\\"agent name\\\",\\n    \\\"secondary_agents\\\": [\\\"list of additional agents\\\"],\\n    \\\"execution_order\\\": [\\\"agent1\\\", \\\"agent2\\\"],\\n    \\\"dependencies\\\": {\\\"agent1\\\": [\\\"required inputs\\\"]},\\n    \\\"fallback_strategy\\\": \\\"alternative routing if primary fails\\\",\\n    \\\"estimated_time\\\": \\\"seconds\\\",\\n    \\\"reasoning\\\": \\\"detailed routing decision explanation\\\"\\n  },\\n  \\\"coordination\\\": {\\n    \\\"workflow_type\\\": \\\"simple|complex|multi_step\\\",\\n    \\\"data_flow\\\": \\\"how data flows between agents\\\",\\n    \\\"synchronization\\\": \\\"wait_for_all|cascade|independent\\\",\\n    \\\"error_handling\\\": \\\"retry|fallback|fail_gracefully\\\"\\n  },\\n  \\\"prepared_requests\\\": {\\n    \\\"knowledge_manager\\\": {\\n      \\\"title\\\": \\\"title if applicable\\\",\\n      \\\"content\\\": \\\"content to analyze\\\",\\n      \\\"source\\\": \\\"source\\\",\\n      \\\"context\\\": \\\"previous context\\\",\\n      \\\"priority\\\": \\\"priority level\\\"\\n    },\\n    \\\"task_intelligence\\\": {\\n      \\\"task_description\\\": \\\"detailed task\\\",\\n      \\\"priority\\\": \\\"low|medium|high\\\",\\n      \\\"auto_execute\\\": true/false,\\n      \\\"dependencies\\\": [\\\"list of dependencies\\\"],\\n      \\\"context\\\": \\\"task context\\\"\\n    },\\n    \\\"content_intelligence\\\": {\\n      \\\"url\\\": \\\"url to analyze\\\",\\n      \\\"analysis_type\\\": \\\"full|summary|duplicate_check\\\",\\n      \\\"context\\\": \\\"analysis context\\\"\\n    },\\n    \\\"monitoring_analytics\\\": {\\n      \\\"report_type\\\": \\\"health_check|performance|custom\\\",\\n      \\\"scope\\\": \\\"system|service|custom\\\",\\n      \\\"requester\\\": \\\"user context\\\"\\n    }\\n  },\\n  \\\"session_management\\\": {\\n    \\\"preserve_context\\\": true/false,\\n    \\\"update_preferences\\\": {\\\"key\\\": \\\"value\\\"},\\n    \\\"next_expected_action\\\": \\\"what user might do next\\\",\\n    \\\"conversation_state\\\": \\\"updated state\\\"\\n  },\\n  \\\"response_template\\\": {\\n    \\\"direct_response_needed\\\": true/false,\\n    \\\"message\\\": \\\"response to user if direct\\\",\\n    \\\"follow_up_questions\\\": [\\\"questions if needed\\\"],\\n    \\\"suggested_actions\\\": [\\\"next suggested actions\\\"]\\n  }\\n}\\n\\nOnly respond with the JSON object, no additional text.\"\n}, {\n  \"role\": \"user\", \n  \"content\": \"Request: \" + $json.request.message + \"\\nUser: \" + $json.session.user_id + \"\\nSession: \" + $json.session.id + \"\\nConversation turn: \" + $json.session.conversation_turn + \"\\nPrevious context: \" + JSON.stringify($json.session.context_window)\n}]) }}"
+            },
+            {
+              "name": "temperature",
+              "value": 0.3
+            },
+            {
+              "name": "max_tokens",
+              "value": 2000
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "enhanced-intent-analysis",
+      "name": "Enhanced Intent Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "mPqbleyN9GA3vbI9",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Multi-Agent Coordination Logic\nconst analysis = JSON.parse($json.choices[0].message.content);\nconst context = $('Context Preservation').first().json;\n\n// Determine execution strategy\nconst coordination = {\n  strategy: analysis.routing.strategy,\n  agents_to_call: [],\n  execution_plan: [],\n  error_recovery: analysis.coordination.error_handling\n};\n\n// Build agent call list based on strategy\nif (analysis.routing.strategy === 'single') {\n  coordination.agents_to_call.push({\n    agent: analysis.routing.primary_agent,\n    priority: 1,\n    depends_on: [],\n    timeout: parseInt(analysis.routing.estimated_time) || 30\n  });\n} else if (analysis.routing.strategy === 'sequential') {\n  analysis.routing.execution_order.forEach((agent, index) => {\n    coordination.agents_to_call.push({\n      agent: agent,\n      priority: index + 1,\n      depends_on: index > 0 ? [analysis.routing.execution_order[index - 1]] : [],\n      timeout: 30\n    });\n  });\n} else if (analysis.routing.strategy === 'parallel') {\n  [analysis.routing.primary_agent, ...analysis.routing.secondary_agents].forEach(agent => {\n    if (agent) {\n      coordination.agents_to_call.push({\n        agent: agent,\n        priority: agent === analysis.routing.primary_agent ? 1 : 2,\n        depends_on: [],\n        timeout: 30\n      });\n    }\n  });\n}\n\n// Add routing metadata\nconst routingDecision = {\n  analysis: analysis,\n  coordination: coordination,\n  context: context,\n  routing_metadata: {\n    decision_time: new Date().toISOString(),\n    confidence: analysis.analysis.confidence,\n    complexity: analysis.analysis.complexity,\n    estimated_total_time: coordination.agents_to_call.length * 30\n  }\n};\n\nreturn { json: routingDecision };"
+      },
+      "id": "multi-agent-coordination",
+      "name": "Multi-Agent Coordination",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-200, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "route_knowledge",
+              "leftValue": "={{ $json.coordination.agents_to_call.some(a => a.agent === 'knowledge_manager') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-to-knowledge",
+      "name": "Route to Knowledge?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [0, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "route_task",
+              "leftValue": "={{ $json.coordination.agents_to_call.some(a => a.agent === 'task_intelligence') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-to-task",
+      "name": "Route to Task?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [0, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "route_content",
+              "leftValue": "={{ $json.coordination.agents_to_call.some(a => a.agent === 'content_intelligence') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-to-content",
+      "name": "Route to Content?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [0, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "route_monitoring",
+              "leftValue": "={{ $json.coordination.agents_to_call.some(a => a.agent === 'monitoring_analytics') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-to-monitoring",
+      "name": "Route to Monitoring?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [0, 550]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.n8n.dpo2u.com/webhook/knowledge-manager",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $('Multi-Agent Coordination').first().json.analysis.prepared_requests.knowledge_manager.title }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $('Multi-Agent Coordination').first().json.analysis.prepared_requests.knowledge_manager.content }}"
+            },
+            {
+              "name": "source",
+              "value": "Enhanced AI Orchestrator"
+            },
+            {
+              "name": "context",
+              "value": "={{ JSON.stringify($('Multi-Agent Coordination').first().json.context.session) }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $('Multi-Agent Coordination').first().json.analysis.prepared_requests.knowledge_manager.priority }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-knowledge-manager",
+      "name": "Call Knowledge Manager",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.n8n.dpo2u.com/webhook/task-intelligence",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "task_description",
+              "value": "={{ $('Multi-Agent Coordination').first().json.analysis.prepared_requests.task_intelligence.task_description }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $('Multi-Agent Coordination').first().json.analysis.prepared_requests.task_intelligence.priority }}"
+            },
+            {
+              "name": "auto_execute",
+              "value": "={{ $('Multi-Agent Coordination').first().json.analysis.prepared_requests.task_intelligence.auto_execute }}"
+            },
+            {
+              "name": "context",
+              "value": "={{ JSON.stringify($('Multi-Agent Coordination').first().json.context.session) }}"
+            },
+            {
+              "name": "dependencies",
+              "value": "={{ JSON.stringify($('Multi-Agent Coordination').first().json.analysis.prepared_requests.task_intelligence.dependencies) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-task-intelligence",
+      "name": "Call Task Intelligence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [200, 150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.n8n.dpo2u.com/webhook/content-intelligence",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $('Multi-Agent Coordination').first().json.analysis.prepared_requests.content_intelligence.url }}"
+            },
+            {
+              "name": "analysis_type",
+              "value": "={{ $('Multi-Agent Coordination').first().json.analysis.prepared_requests.content_intelligence.analysis_type }}"
+            },
+            {
+              "name": "context",
+              "value": "={{ JSON.stringify($('Multi-Agent Coordination').first().json.context.session) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-content-intelligence",
+      "name": "Call Content Intelligence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.n8n.dpo2u.com/webhook/monitoring-analytics",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "report_type",
+              "value": "={{ $('Multi-Agent Coordination').first().json.analysis.prepared_requests.monitoring_analytics.report_type }}"
+            },
+            {
+              "name": "scope",
+              "value": "={{ $('Multi-Agent Coordination').first().json.analysis.prepared_requests.monitoring_analytics.scope }}"
+            },
+            {
+              "name": "requester",
+              "value": "Enhanced AI Orchestrator"
+            },
+            {
+              "name": "context",
+              "value": "={{ JSON.stringify($('Multi-Agent Coordination').first().json.context.session) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-monitoring-analytics",
+      "name": "Call Monitoring Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [200, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enhanced Response Consolidation with Context Management\nconst coordInfo = $('Multi-Agent Coordination').first().json;\nconst analysis = coordInfo.analysis;\nconst context = coordInfo.context;\n\n// Collect responses from all called agents\nconst agentResponses = {};\nconst errors = [];\n\n// Get responses from agents that were called\nif (coordInfo.coordination.agents_to_call.some(a => a.agent === 'knowledge_manager')) {\n  try {\n    agentResponses.knowledge_manager = $('Call Knowledge Manager').first().json;\n  } catch (error) {\n    errors.push({ agent: 'knowledge_manager', error: error.message });\n  }\n}\n\nif (coordInfo.coordination.agents_to_call.some(a => a.agent === 'task_intelligence')) {\n  try {\n    agentResponses.task_intelligence = $('Call Task Intelligence').first().json;\n  } catch (error) {\n    errors.push({ agent: 'task_intelligence', error: error.message });\n  }\n}\n\nif (coordInfo.coordination.agents_to_call.some(a => a.agent === 'content_intelligence')) {\n  try {\n    agentResponses.content_intelligence = $('Call Content Intelligence').first().json;\n  } catch (error) {\n    errors.push({ agent: 'content_intelligence', error: error.message });\n  }\n}\n\nif (coordInfo.coordination.agents_to_call.some(a => a.agent === 'monitoring_analytics')) {\n  try {\n    agentResponses.monitoring_analytics = $('Call Monitoring Analytics').first().json;\n  } catch (error) {\n    errors.push({ agent: 'monitoring_analytics', error: error.message });\n  }\n}\n\n// Enhanced response consolidation\nconst enhancedResponse = {\n  success: errors.length === 0,\n  orchestrator: {\n    id: 'enhanced-orch-' + Date.now(),\n    version: '2.0',\n    processing_time: (Date.now() - new Date(context.metadata.processing_start).getTime()) / 1000 + 's',\n    timestamp: new Date().toISOString()\n  },\n  session: {\n    id: context.session.id,\n    user_id: context.session.user_id,\n    conversation_turn: context.session.conversation_turn + 1,\n    updated_context: {\n      ...context.session.context_window.slice(-4), // Keep last 4 interactions\n      current_interaction: {\n        request: context.request.message,\n        agents_called: coordInfo.coordination.agents_to_call.map(a => a.agent),\n        timestamp: new Date().toISOString()\n      }\n    }\n  },\n  routing_analysis: {\n    primary_intent: analysis.analysis.primary_intent,\n    confidence: analysis.analysis.confidence,\n    complexity: analysis.analysis.complexity,\n    strategy_used: analysis.routing.strategy,\n    agents_called: coordInfo.coordination.agents_to_call.length,\n    multi_agent_coordination: analysis.analysis.multi_agent_needed\n  },\n  agent_responses: agentResponses,\n  coordination_results: {\n    strategy_executed: coordInfo.coordination.strategy,\n    execution_plan_success: errors.length === 0,\n    agent_performance: coordInfo.coordination.agents_to_call.map(agent => ({\n      agent: agent.agent,\n      called: agentResponses[agent.agent] !== undefined,\n      error: errors.find(e => e.agent === agent.agent)?.error || null\n    }))\n  },\n  consolidated_output: {\n    primary_result: agentResponses[analysis.routing.primary_agent] || null,\n    secondary_results: analysis.routing.secondary_agents?.map(agent => agentResponses[agent]).filter(Boolean) || [],\n    synthesis: 'Multiple agent responses processed and consolidated',\n    confidence_score: analysis.analysis.confidence\n  },\n  next_actions: {\n    suggested_follow_ups: analysis.response_template.follow_up_questions || [],\n    available_actions: [\n      'Continue conversation with context',\n      'Request specific agent analysis', \n      'Multi-step task execution',\n      'System status check'\n    ],\n    context_preserved: true,\n    session_continues: true\n  },\n  errors: errors,\n  metadata: {\n    enhanced_features: [\n      'Context preservation',\n      'Multi-agent coordination',\n      'Session management',\n      'Error recovery',\n      'Performance optimization'\n    ],\n    performance: {\n      total_processing_time: (Date.now() - new Date(context.metadata.processing_start).getTime()) / 1000,\n      agents_called: coordInfo.coordination.agents_to_call.length,\n      success_rate: ((coordInfo.coordination.agents_to_call.length - errors.length) / coordInfo.coordination.agents_to_call.length * 100).toFixed(2) + '%'\n    }\n  }\n};\n\nreturn { json: enhancedResponse };"
+      },
+      "id": "enhanced-response-consolidation",
+      "name": "Enhanced Response Consolidation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "enhanced-response",
+      "name": "Enhanced Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [600, 300]
+    }
+  ],
+  "connections": {
+    "Enhanced Orchestrator Input": {
+      "main": [
+        [
+          {
+            "node": "Context Preservation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Context Preservation": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Intent Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Intent Analysis": {
+      "main": [
+        [
+          {
+            "node": "Multi-Agent Coordination",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Multi-Agent Coordination": {
+      "main": [
+        [
+          {
+            "node": "Route to Knowledge?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route to Task?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route to Content?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route to Monitoring?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Knowledge?": {
+      "main": [
+        [
+          {
+            "node": "Call Knowledge Manager",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enhanced Response Consolidation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Task?": {
+      "main": [
+        [
+          {
+            "node": "Call Task Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Content?": {
+      "main": [
+        [
+          {
+            "node": "Call Content Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Monitoring?": {
+      "main": [
+        [
+          {
+            "node": "Call Monitoring Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Knowledge Manager": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Response Consolidation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Task Intelligence": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Response Consolidation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Content Intelligence": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Response Consolidation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Monitoring Analytics": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Response Consolidation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Response Consolidation": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "tags": [
+    {
+      "name": "Enhanced",
+      "id": "enhanced-tag"
+    },
+    {
+      "name": "AI-Orchestrator",
+      "id": "orchestrator-tag"
+    }
+  ]
+}
