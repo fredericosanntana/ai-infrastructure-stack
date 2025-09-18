@@ -283,8 +283,8 @@ def search():
             leann_request_duration.labels(endpoint='search', cache_status=cache_status).observe(time.time() - start_time)
             return jsonify(cached_result)
         
-        # Run LEANN search command - need to quote the query
-        cmd_args = ['search', index_name, f'"{query}"']
+        # Run LEANN search command; pass the raw query and allow subprocess to handle spacing
+        cmd_args = ['search', index_name, query]
         if top_k != 5:
             cmd_args.extend(['--top-k', str(top_k)])
         
@@ -348,8 +348,8 @@ def ask():
             leann_request_duration.labels(endpoint='ask', cache_status=cache_status).observe(time.time() - start_time)
             return jsonify(cached_result)
         
-        # Run LEANN ask command - need to quote the question
-        cmd_args = ['ask', index_name, f'"{question}"']
+        # Run LEANN ask command; pass the raw question and allow subprocess to handle spacing
+        cmd_args = ['ask', index_name, question]
         result = run_leann_command(cmd_args)
         
         if not result['success']:
