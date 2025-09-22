@@ -1,0 +1,315 @@
+{
+  "name": "Spec Kit Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "spec-kit-processor",
+        "httpMethod": "POST",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook - Spec Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and validate input\nconst input = $input.first().json;\n\nif (!input.description || !input.project_name) {\n  throw new Error('Missing required fields: description and project_name');\n}\n\n// Format specification prompt\nconst specPrompt = `/specify ${input.description}`;\n\n// Format plan prompt if tech stack provided\nlet planPrompt = '';\nif (input.tech_stack) {\n  planPrompt = `/plan ${input.tech_stack}`;\n}\n\nreturn {\n  project_name: input.project_name,\n  description: input.description,\n  tech_stack: input.tech_stack || 'To be determined',\n  spec_prompt: specPrompt,\n  plan_prompt: planPrompt,\n  timestamp: new Date().toISOString(),\n  feature_type: input.feature_type || 'general'\n};"
+      },
+      "id": "process_input",
+      "name": "Process Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.18.0.1:3001/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer leann_api_2025"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"{{ $json.description }} specification template example\",\n  \"index\": \"myvault\",\n  \"top_k\": 3\n}",
+        "options": {}
+      },
+      "id": "search_similar_specs",
+      "name": "Search Similar Specs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a Spec-Driven Development expert. Generate a comprehensive specification following best practices. Include user stories, acceptance criteria, non-functional requirements, and mark any ambiguities with [NEEDS CLARIFICATION]."
+            },
+            {
+              "role": "user",
+              "content": "=Generate a feature specification for:\n\nProject: {{ $('process_input').item.json.project_name }}\nDescription: {{ $('process_input').item.json.description }}\nType: {{ $('process_input').item.json.feature_type }}\n\nSimilar examples found:\n{{ $('search_similar_specs').item.json.results }}\n\nGenerate a complete specification with:\n1. Overview\n2. User Stories (at least 3)\n3. Acceptance Criteria\n4. Non-Functional Requirements\n5. Assumptions and Dependencies\n6. Mark uncertainties with [NEEDS CLARIFICATION]"
+            }
+          ]
+        }
+      },
+      "id": "generate_specification",
+      "name": "Generate Specification",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('process_input').item.json.tech_stack }}",
+              "rightValue": "To be determined",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check_tech_stack",
+      "name": "Has Tech Stack?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a technical architect. Create a detailed implementation plan based on the specification and chosen tech stack. Follow the constitution principles: Library-First, CLI Interface, Test-First, Simplicity, Anti-Abstraction."
+            },
+            {
+              "role": "user",
+              "content": "=Create implementation plan for:\n\nSpecification:\n{{ $('generate_specification').item.json.message.content }}\n\nTech Stack: {{ $('process_input').item.json.tech_stack }}\n\nGenerate a plan with:\n1. Technology Stack details\n2. Architecture components\n3. Implementation phases\n4. Testing strategy\n5. File creation order (tests first!)\n6. Complexity gates verification"
+            }
+          ]
+        }
+      },
+      "id": "generate_plan",
+      "name": "Generate Plan",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate executable tasks from plan\nconst spec = $('generate_specification').item.json.message.content;\nconst hasPlan = $('check_tech_stack').item.json.tech_stack !== 'To be determined';\nconst plan = hasPlan ? $('generate_plan').item.json.message?.content : null;\n\nconst tasks = {\n  phase1_setup: [\n    'Initialize project repository',\n    'Setup development environment',\n    'Configure CI/CD pipeline',\n    'Create project structure'\n  ],\n  phase2_core: [\n    'Write unit tests for core functionality',\n    'Implement core libraries',\n    'Create CLI interfaces',\n    'Add integration tests'\n  ],\n  phase3_features: [\n    'Implement user stories',\n    'Add acceptance tests',\n    'Create documentation',\n    'Performance optimization'\n  ],\n  phase4_deployment: [\n    'Create Docker containers',\n    'Write deployment scripts',\n    'Setup monitoring',\n    'Production deployment'\n  ]\n};\n\n// Mark parallel tasks\nconst parallelTasks = [\n  'Configure CI/CD pipeline',\n  'Create documentation',\n  'Setup monitoring'\n];\n\nreturn {\n  project_name: $('process_input').item.json.project_name,\n  specification: spec,\n  implementation_plan: plan,\n  tasks: tasks,\n  parallel_tasks: parallelTasks,\n  estimated_duration: '2-3 weeks',\n  next_steps: [\n    'Review and refine specification',\n    'Validate tech stack choices',\n    'Assign tasks to team members',\n    'Begin Phase 1 implementation'\n  ]\n};"
+      },
+      "id": "generate_tasks",
+      "name": "Generate Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "https://api.github.com",
+          "mode": "url"
+        },
+        "owner": {
+          "__rl": true,
+          "value": "fredericosanntana",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "ai-infrastructure-stack",
+          "mode": "name"
+        },
+        "title": "={{ 'Spec: ' + $('process_input').item.json.project_name }}",
+        "body": "=## Feature Specification\n\n{{ $('generate_specification').item.json.message.content }}\n\n---\n\n## Implementation Plan\n\n{{ $('generate_plan').item.json.message?.content || 'Tech stack not yet defined' }}\n\n---\n\n## Tasks\n\n{{ JSON.stringify($json.tasks, null, 2) }}\n\n---\n\nGenerated by Spec Kit Automation",
+        "labels": {
+          "labelsValues": [
+            "spec-driven",
+            "automated"
+          ]
+        }
+      },
+      "id": "create_github_issue",
+      "name": "Create GitHub Issue",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [1650, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format output for response\nconst result = {\n  success: true,\n  project: $('process_input').item.json.project_name,\n  timestamp: new Date().toISOString(),\n  artifacts: {\n    specification: {\n      generated: true,\n      has_clarifications: $('generate_specification').item.json.message.content.includes('[NEEDS CLARIFICATION]')\n    },\n    implementation_plan: {\n      generated: $('check_tech_stack').item.json.tech_stack !== 'To be determined',\n      tech_stack: $('process_input').item.json.tech_stack\n    },\n    tasks: {\n      total: Object.values($('generate_tasks').item.json.tasks).flat().length,\n      phases: Object.keys($('generate_tasks').item.json.tasks).length,\n      parallel: $('generate_tasks').item.json.parallel_tasks.length\n    },\n    github_issue: {\n      created: !$('create_github_issue').item.error,\n      url: $('create_github_issue').item.json?.html_url || null\n    }\n  },\n  next_actions: $('generate_tasks').item.json.next_steps,\n  specification_excerpt: $('generate_specification').item.json.message.content.substring(0, 500) + '...',\n  download_links: {\n    full_spec: `/api/specs/${$('process_input').item.json.project_name}/spec.md`,\n    plan: `/api/specs/${$('process_input').item.json.project_name}/plan.md`,\n    tasks: `/api/specs/${$('process_input').item.json.project_name}/tasks.md`\n  }\n};\n\nreturn result;"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "process_input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_input": {
+      "main": [
+        [
+          {
+            "node": "search_similar_specs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_similar_specs": {
+      "main": [
+        [
+          {
+            "node": "generate_specification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_specification": {
+      "main": [
+        [
+          {
+            "node": "check_tech_stack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_tech_stack": {
+      "main": [
+        [
+          {
+            "node": "generate_plan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "generate_tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_plan": {
+      "main": [
+        [
+          {
+            "node": "generate_tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_tasks": {
+      "main": [
+        [
+          {
+            "node": "create_github_issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_github_issue": {
+      "main": [
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_response": {
+      "main": [
+        [
+          {
+            "node": "respond_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "id": "spec-kit-automation",
+  "meta": {
+    "templateId": "spec-kit-automation-v1"
+  },
+  "tags": [
+    {
+      "name": "spec-kit"
+    },
+    {
+      "name": "automation"
+    },
+    {
+      "name": "ai-agents"
+    }
+  ]
+}

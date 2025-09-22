@@ -12,6 +12,7 @@
 This repository contains a complete infrastructure stack that combines **traditional DevOps tools** with **cutting-edge AI automation**. Built around Docker Compose, it features:
 
 - **🤖 4 Intelligent AI Agents** running on n8n for automated workflows
+- **🧠 Local LLM Integration** with Ollama (Qwen 2.5 3B) for private AI processing
 - **🔍 LEANN Vector Database** with 99.97% performance boost via Redis cache
 - **📊 Complete Monitoring Stack** with Prometheus, Grafana, and AlertManager
 - **🔄 Auto-reindexing System** for real-time knowledge base updates
@@ -24,22 +25,26 @@ graph TD
     A[Traefik Reverse Proxy] --> B[n8n Workflows]
     A --> C[Obsidian Knowledge Base]
     A --> D[Monitoring Stack]
-    
+
     B --> E[AI Agents System]
     E --> F[Knowledge Manager]
     E --> G[Task Intelligence]
     E --> H[Content Intelligence]
     E --> I[Monitoring Analytics]
-    
+
     J[LEANN Vector DB] --> K[OpenAI Embeddings]
     J --> L[Redis Cache]
-    
+
+    P[Ollama LLM Local] --> Q[Qwen 2.5 3B Model]
+    B --> P
+    E --> P
+
     B --> J
     F --> J
     G --> J
     H --> J
     I --> J
-    
+
     M[Prometheus] --> N[Grafana]
     M --> O[AlertManager]
 ```
@@ -99,11 +104,33 @@ cat ai-agents/deployment-guide.md
 - **Function**: Proactive infrastructure health monitoring
 - **Features**: Prometheus integration, performance analytics, alerting
 
+## 🧠 **Ollama Local LLM**
+
+### **Model Specifications**
+- **Model**: Qwen 2.5 3B Instruct (Q4_0 quantized)
+- **Memory Usage**: 2.2GB RAM
+- **Response Time**: 2-3 seconds
+- **Context Window**: 4096 tokens
+- **Privacy**: 100% local, no external API calls
+
+### **n8n Integration**
+```json
+{
+  "url": "http://172.18.0.1:11434/api/generate",
+  "method": "POST",
+  "body": {
+    "model": "qwen2.5:3b-instruct-q4_0",
+    "prompt": "Your prompt here",
+    "stream": false
+  }
+}
+```
+
 ## 🔍 **LEANN Semantic Search**
 
 ### **Performance Metrics**
 - **Cache Hit Rate**: >90% (Redis optimized)
-- **Response Time**: 15ms (cached) vs 44s (uncached) 
+- **Response Time**: 15ms (cached) vs 44s (uncached)
 - **Performance Boost**: 99.97% improvement
 - **Search Accuracy**: High semantic relevance
 
@@ -142,6 +169,7 @@ curl http://localhost:3001/health
 | **Traefik** | Reverse Proxy | 80/443 | traefik.example.com |
 | **n8n** | Workflow Automation | 5678 | n8n.example.com |
 | **Obsidian** | Knowledge Management | 3000 | obsidian.example.com |
+| **Ollama** | Local LLM Server | 11434 | Internal |
 | **LEANN API** | Semantic Search | 3001 | Internal |
 | **Prometheus** | Metrics | 9090 | Internal |
 | **Grafana** | Dashboards | 3000 | grafana.example.com |
@@ -153,6 +181,7 @@ curl http://localhost:3001/health
 - [Architecture Overview](documentation/architecture/ARCHITECTURE.md)
 - [AI Agents System](documentation/obsidian-vault/055-n8n-AI-Agents-System.md)
 - [LEANN Vector Database](documentation/obsidian-vault/015-LEANN-Vector-Database.md)
+- [Ollama LLM Integration](ollama-llm/README.md)
 
 ### **Deployment & Operations**
 - [Complete Setup Guide](documentation/CLAUDE.md)
