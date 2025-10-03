@@ -1,0 +1,154 @@
+version: '3.8'
+
+# AI Infrastructure Stack - Complete 27 Container Deployment
+# This compose file includes the core AI infrastructure without email stack
+# For email: use ../email-stack/billionmail-compose.yml
+# For complete monitoring: use ../monitoring/complete-monitoring-stack.yml
+
+services:
+  # Reverse Proxy & Load Balancer
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+      - "8082:8082"  # Traefik metrics
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic_conf.yml:/etc/traefik/dynamic_conf.yml:ro
+      - traefik-acme:/acme
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.service=api@internal"
+
+  # Knowledge Management
+  obsidian:
+    image: ghcr.io/linuxserver/obsidian:latest
+    container_name: obsidian
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-UTC}
+      - PASSWORD=${OBSIDIAN_PASSWORD:-your_password}
+    volumes:
+      - obsidian-config:/config
+      - obsidian-vaults:/obsidian-vaults
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.obsidian.rule=Host(`obsidian.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.obsidian.tls=true"
+      - "traefik.http.routers.obsidian.tls.certresolver=letsencrypt"
+      - "traefik.http.services.obsidian.loadbalancer.server.port=3000"
+
+  # Workflow Automation Platform
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - obsidian-vaults:/obsidian-vaults:ro
+    environment:
+      - N8N_HOST=${N8N_DOMAIN:-n8n.localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://${N8N_DOMAIN:-n8n.localhost}/
+      - GENERIC_TIMEZONE=${TZ:-UTC}
+      - N8N_METRICS=true
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(`${N8N_DOMAIN:-n8n.localhost}`)"
+      - "traefik.http.routers.n8n.tls=true"
+      - "traefik.http.routers.n8n.tls.certresolver=letsencrypt"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+
+  # Local LLM Server
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
+    networks:
+      - traefik
+
+  # Core Monitoring Services
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - monitoring
+      - traefik
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - monitoring
+      - traefik
+
+  # Container Management
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+    networks:
+      - traefik
+
+networks:
+  traefik:
+    external: false
+  monitoring:
+    external: false
+
+volumes:
+  traefik-acme:
+  obsidian-config:
+  obsidian-vaults:
+  n8n-data:
+  ollama-data:
+  prometheus-data:
+  grafana-data:
+  portainer-data:

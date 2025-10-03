@@ -1,10 +1,12 @@
 # 🚀 AI Infrastructure Stack
 
-> **A complete, production-ready infrastructure stack featuring AI-powered automation, semantic search, and intelligent workflows.**
+> **A complete, production-ready infrastructure stack featuring AI-powered automation, semantic search, intelligent workflows, and enterprise email services.**
 
 ![Infrastructure Status](https://img.shields.io/badge/Status-Production%20Ready-green)
+![Containers](https://img.shields.io/badge/Containers-27%20Active-blue)
 ![AI Agents](https://img.shields.io/badge/AI%20Agents-4%20Active-blue)
 ![LEANN Integration](https://img.shields.io/badge/LEANN-Semantic%20Search-purple)
+![Email Stack](https://img.shields.io/badge/BillionMail-Enterprise%20Email-orange)
 ![Docker](https://img.shields.io/badge/Docker-Compose%20Ready-blue)
 
 ## 🎯 **What is this?**
